@@ -64,7 +64,7 @@ def initialize_blockchain_connections() -> tuple:
 
     # Initialize Hive instance
     hive_instance = Hive(
-        node=CONFIG["NODE_URLS"], keys=[posting_wif, active_wif], nobroadcast=True
+        node=CONFIG["NODE_URLS"], keys=[posting_wif, active_wif], nobroadcast=False
     )
 
     # Initialize wallets
