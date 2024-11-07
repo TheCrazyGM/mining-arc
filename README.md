@@ -43,6 +43,9 @@ The script contains a configuration section where you can adjust the following p
 2. The script is self-contained and can be executed directly using `uv` for package management.
 
    ```bash
+   pipx install uv
+   curl -L https://raw.githubusercontent.com/TheCrazyGM/mining-arc/refs/heads/main/mining_arc.py -o mining_arc.py
+   chmod +x mining_arc.py
    ./mining_arc.py
    ```
 
@@ -51,7 +54,7 @@ The script contains a configuration section where you can adjust the following p
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/TheCrazyGM/mining-arc.git
    cd mining_arc 
    ```
 
