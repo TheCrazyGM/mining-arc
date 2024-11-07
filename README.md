@@ -55,7 +55,7 @@ The script contains a configuration section where you can adjust the following p
 
    ```bash
    git clone https://github.com/TheCrazyGM/mining-arc.git
-   cd mining_arc 
+   cd mining-arc 
    ```
 
 2. Install the required dependencies:
