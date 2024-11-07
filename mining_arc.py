@@ -12,6 +12,7 @@
 import logging
 import os
 import time
+import math
 
 from beem import Hive
 from beem.wallet import Wallet
@@ -53,6 +54,7 @@ wallet = Wallet(blockchain_instance=hive_instance)
 sender_account = wallet.getAccountFromPrivateKey(active_wif)
 hive_wallet = HWallet(sender_account, blockchain_instance=hive_instance, api=api)
 
+
 def get_richlist():
     """
     Retrieve the current richlist and filter out accounts with zero balance or in the blacklist.
@@ -64,12 +66,18 @@ def get_richlist():
     richlist = token.get_holder()
     logging.info("Richlist successfully retrieved.")
 
-    # Filter the richlist to exclude blacklisted accounts and those with zero balance
+    # Create a filtered richlist with floored balances
     filtered_richlist = [
-        hodl
+        {
+            "account": hodl["account"],
+            "balance": math.floor(
+                float(hodl["balance"])
+            ),  # Store only the floored balance
+        }
         for hodl in richlist
         if (
-            int(float(hodl["balance"])) > 0
+            math.floor(float(hodl["balance"]))
+            > 0  # Only include accounts with a positive floored balance
             and hodl["account"] not in BLACKLISTED_ACCOUNTS
         )
     ]
