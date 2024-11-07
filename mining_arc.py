@@ -143,7 +143,7 @@ def process_payments(hive_wallet, data: List[Dict[str, str]]):
         data: List of account holders with balances
     """
     for holder in data:
-        payment_amount = (int(float(holder["balance"])) // 1) * CONFIG["PAYOUT_RATE"]
+        payment_amount = holder["balance"] * CONFIG["PAYOUT_RATE"]
         if payment_amount > 0.0:
             send_transaction(hive_wallet, holder["account"], payment_amount)
             time.sleep(1)  # Rate limiting
@@ -163,7 +163,7 @@ def display_richlist(data: List[Dict[str, str]]):
     table.align["Payment"] = "r"
 
     for holder in data:
-        payment_amount = (int(float(holder["balance"])) // 1) * CONFIG["PAYOUT_RATE"]
+        payment_amount = holder["balance"] * CONFIG["PAYOUT_RATE"]
         table.add_row([holder["account"], holder["balance"], f"{payment_amount:0.4f}"])
 
     print(table.get_string(sortby="Holding", reversesort=True))
