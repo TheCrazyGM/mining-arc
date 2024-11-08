@@ -127,7 +127,7 @@ def send_transaction(hive_wallet, recipient: str, amount: float):
             recipient,
             amount,
             CONFIG["TOKEN_NAME"],
-            f"{amount} = {CONFIG['PAYOUT_RATE']} {CONFIG['TOKEN_NAME']} mining share",
+            f"{amount} = {CONFIG['PAYOUT_RATE']} {CONFIG['TOKEN_NAME']} per whole {CONFIG['TOKEN_QUERY']} mining share",
         )
         logging.debug(transaction)
     except Exception as error:
