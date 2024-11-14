@@ -44,7 +44,7 @@ The script contains a configuration section where you can adjust the following p
 
    ```bash
    pipx install uv
-   curl -L https://raw.githubusercontent.com/TheCrazyGM/mining-arc/refs/heads/main/mining_arc.py -o mining_arc.py
+   curl -L https://raw.githubusercontent.com/TheCrazyGM/mining-arc/refs/heads/main/src/mining_arc/__init__.py -o mining_arc.py
    chmod +x mining_arc.py
    ./mining_arc.py
    ```
