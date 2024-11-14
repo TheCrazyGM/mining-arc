@@ -63,15 +63,19 @@ The script contains a configuration section where you can adjust the following p
    ```bash
    pip install -r requirements.txt
    ```
+   or
+   ```bash
+   uv sync
+   ```
 
-3. Set up your environment variables in a `.env` file:
+4. Set up your environment variables in a `.env` file:
 
    ```plaintext
    ACTIVE_WIF=your_active_wif_key
    POSTING_WIF=your_posting_wif_key
    ```
 
-4. Run the script:
+5. Run the script:
    ```bash
    python3 mining_arc.py
    ```
