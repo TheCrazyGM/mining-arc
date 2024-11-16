@@ -43,10 +43,11 @@ The script is highly configurable through environment variables. You can set the
 ## Usage
 
 ### Quick Start
-1. Set up your environment variables in a `.env` file:
-   ```plaintext
-   ACTIVE_WIF=your_active_wif_key
-   POSTING_WIF=your_posting_wif_key
+1. Set up your environment variables by copying and modifying the example file:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your preferred text editor and add your keys
+   nano .env
    ```
 
 2. The script is self-contained and can be executed directly using `uv` for package management:
