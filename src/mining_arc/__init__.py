@@ -21,8 +21,10 @@ Requires environment variables:
 import logging
 import math
 import os
+import sys
 import time
-from typing import Dict, List
+from dataclasses import dataclass
+from typing import List, Optional, Tuple 
 
 from beem import Hive
 from beem.wallet import Wallet
@@ -34,153 +36,172 @@ from prettytable import PrettyTable, TableStyle
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
+logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+@dataclass
+class TokenConfig:
+    """Configuration settings for token distribution."""
+    payout_rate: float
+    token_query: str
+    token_name: str
+    blacklisted_accounts: List[str]
+    node_urls: List[str]
+    hive_engine_api_url: str
+    nobroadcast: bool
 
-# Configuration Constants
-CONFIG = {
-    "PAYOUT_RATE": 0.250,
-    "TOKEN_QUERY": "ARCHONM",
-    "TOKEN_NAME": "ARCHON",
-    "BLACKLISTED_ACCOUNTS": ["ufm.pay", "upfundme"],
-    "NODE_URLS": ["https://api.hive.blog"],
-    "HIVE_ENGINE_API_URL": "https://api.hive-engine.com/rpc/",
-}
-
-
-def initialize_blockchain_connections() -> tuple:
-    """
-    Initialize Hive and Hive Engine blockchain connections.
-
-    Returns:
-        tuple: Initialized Hive instance, wallet, and Hive Engine wallet
-    """
-    # Retrieve WIF keys from environment
-    active_wif = os.environ["ACTIVE_WIF"]
-    posting_wif = os.environ["POSTING_WIF"]
-
-    # Initialize Hive instance
-    hive_instance = Hive(
-        node=CONFIG["NODE_URLS"], keys=[posting_wif, active_wif], nobroadcast=False
-    )
-
-    # Initialize wallets
-    wallet = Wallet(blockchain_instance=hive_instance)
-    sender_account = wallet.getAccountFromPrivateKey(active_wif)
-
-    api = Api(url=CONFIG["HIVE_ENGINE_API_URL"])
-    hive_wallet = HiveEngineWallet(
-        sender_account, blockchain_instance=hive_instance, api=api
-    )
-
-    return hive_instance, hive_wallet
-
-
-def get_richlist() -> List[Dict[str, str]]:
-    """
-    Retrieve and filter the token holder richlist.
-
-    Returns:
-        List of dictionaries containing account and balance information
-    """
-    try:
-        api = Api(url=CONFIG["HIVE_ENGINE_API_URL"])
-        token = Token(CONFIG["TOKEN_QUERY"], api=api)
-        richlist = token.get_holder()
-
-        # Filter and process richlist
-        filtered_richlist = [
-            {
-                "account": holder["account"],
-                "balance": math.floor(float(holder["balance"])),
-            }
-            for holder in richlist
-            if (
-                math.floor(float(holder["balance"])) > 0
-                and holder["account"] not in CONFIG["BLACKLISTED_ACCOUNTS"]
-            )
-        ]
-
-        logging.info(f"Retrieved richlist with {len(filtered_richlist)} accounts")
-        return filtered_richlist
-
-    except Exception as e:
-        logging.error(f"Error retrieving richlist: {e}")
-        return []
-
-
-def send_transaction(hive_wallet, recipient: str, amount: float):
-    """
-    Send token transaction to a recipient.
-
-    Args:
-        hive_wallet: Hive Engine wallet instance
-        recipient: Account to receive tokens
-        amount: Amount of tokens to transfer
-    """
-    try:
-        logging.info(f"Sending {amount} {CONFIG['TOKEN_NAME']} to {recipient}")
-        transaction = hive_wallet.transfer(
-            recipient,
-            amount,
-            CONFIG["TOKEN_NAME"],
-            f"{amount} = {CONFIG['PAYOUT_RATE']} {CONFIG['TOKEN_NAME']} per whole {CONFIG['TOKEN_QUERY']} mining share",
+    @classmethod
+    def from_env(cls) -> 'TokenConfig':
+        """Create configuration from environment variables with defaults."""
+        return cls(
+            payout_rate=float(os.getenv('PAYOUT_RATE', '0.250')),
+            token_query=os.getenv('TOKEN_QUERY', 'ARCHONM'),
+            token_name=os.getenv('TOKEN_NAME', 'ARCHON'),
+            blacklisted_accounts=os.getenv('BLACKLISTED_ACCOUNTS', 'ufm.pay,upfundme').split(','),
+            node_urls=[os.getenv('NODE_URL', 'https://api.hive.blog')],
+            hive_engine_api_url=os.getenv('HIVE_ENGINE_API_URL', 'https://api.hive-engine.com/rpc/'),
+            nobroadcast=os.getenv('DRY_RUN', '').lower() in ('true', '1', 'yes')
         )
-        logging.debug(transaction)
-    except Exception as error:
-        logging.warning(f"Transaction error for {recipient}: {error}")
 
+@dataclass
+class TokenHolder:
+    """Represents a token holder with their balance."""
+    account: str
+    balance: float
 
-def process_payments(hive_wallet, data: List[Dict[str, str]]):
-    """
-    Process and distribute token payments.
+    @property
+    def payment_amount(self, config: TokenConfig) -> float:
+        """Calculate payment amount based on balance and payout rate."""
+        return self.balance * config.payout_rate
 
-    Args:
-        hive_wallet: Hive Engine wallet instance
-        data: List of account holders with balances
-    """
-    for holder in data:
-        payment_amount = holder["balance"] * CONFIG["PAYOUT_RATE"]
-        if payment_amount > 0.0:
-            send_transaction(hive_wallet, holder["account"], payment_amount)
-            time.sleep(1)  # Rate limiting
+class TokenDistributor:
+    """Handles token distribution operations."""
+    
+    def __init__(self):
+        """Initialize the token distributor."""
+        load_dotenv()
+        self.config = TokenConfig.from_env()
+        self._validate_environment()
+        self.hive_instance, self.hive_wallet = self._initialize_blockchain()
 
+    def _validate_environment(self) -> None:
+        """Validate required environment variables are present."""
+        required_vars = ['ACTIVE_WIF', 'POSTING_WIF']
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        if missing_vars:
+            logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+            sys.exit(1)
 
-def display_richlist(data: List[Dict[str, str]]):
-    """
-    Display richlist in a formatted table.
+    def _initialize_blockchain(self) -> Tuple[Hive, HiveEngineWallet]:
+        """Initialize blockchain connections."""
+        try:
+            active_wif = os.environ["ACTIVE_WIF"]
+            posting_wif = os.environ["POSTING_WIF"]
 
-    Args:
-        data: List of account holders with balances
-    """
-    table = PrettyTable(["Account", "Holding", "Payment"])
-    table.set_style(TableStyle.MARKDOWN)
-    table.align["Account"] = "l"
-    table.align["Holding"] = "r"
-    table.align["Payment"] = "r"
+            if self.config.nobroadcast:
+                logger.warning("Running in DRY RUN mode - no transactions will be broadcast")
 
-    for holder in data:
-        payment_amount = holder["balance"] * CONFIG["PAYOUT_RATE"]
-        table.add_row([holder["account"], holder["balance"], f"{payment_amount:0.4f}"])
+            hive_instance = Hive(
+                node=self.config.node_urls,
+                keys=[posting_wif, active_wif],
+                nobroadcast=self.config.nobroadcast
+            )
 
-    print(table.get_string(sortby="Holding", reversesort=True))
+            wallet = Wallet(blockchain_instance=hive_instance)
+            sender_account = wallet.getAccountFromPrivateKey(active_wif)
 
+            api = Api(url=self.config.hive_engine_api_url)
+            hive_wallet = HiveEngineWallet(
+                sender_account,
+                blockchain_instance=hive_instance,
+                api=api
+            )
+
+            return hive_instance, hive_wallet
+
+        except Exception as e:
+            logger.error(f"Failed to initialize blockchain connections: {e}")
+            sys.exit(1)
+
+    def get_richlist(self) -> List[TokenHolder]:
+        """Retrieve and filter token holder richlist."""
+        try:
+            api = Api(url=self.config.hive_engine_api_url)
+            token = Token(self.config.token_query, api=api)
+            richlist = token.get_holder()
+
+            holders = [
+                TokenHolder(
+                    account=holder["account"],
+                    balance=math.floor(float(holder["balance"]))
+                )
+                for holder in richlist
+                if (
+                    math.floor(float(holder["balance"])) > 0
+                    and holder["account"] not in self.config.blacklisted_accounts
+                )
+            ]
+
+            logger.info(f"Retrieved richlist with {len(holders)} accounts")
+            return holders
+
+        except Exception as e:
+            logger.error(f"Error retrieving richlist: {e}")
+            return []
+
+    def send_transaction(self, recipient: str, amount: float) -> Optional[dict]:
+        """Send token transaction to a recipient."""
+        try:
+            logger.info(f"Sending {amount} {self.config.token_name} to {recipient}")
+            transaction = self.hive_wallet.transfer(
+                recipient,
+                amount,
+                self.config.token_name,
+                f"{amount} = {self.config.payout_rate} {self.config.token_name} "
+                f"per whole {self.config.token_query} mining share"
+            )
+            logger.debug(f"Transaction details: {transaction}")
+            return transaction
+        except Exception as error:
+            logger.warning(f"Transaction error for {recipient}: {error}")
+            return None
+
+    def process_payments(self, holders: List[TokenHolder]) -> None:
+        """Process and distribute token payments."""
+        for holder in holders:
+            payment_amount = holder.balance * self.config.payout_rate
+            if payment_amount > 0.0:
+                self.send_transaction(holder.account, payment_amount)
+                time.sleep(1)  # Rate limiting
+
+    def display_richlist(self, holders: List[TokenHolder]) -> None:
+        """Display richlist in a formatted table."""
+        table = PrettyTable(["Account", "Holding", "Payment"])
+        table.set_style(TableStyle.MARKDOWN)
+        table.align["Account"] = "l"
+        table.align["Holding"] = "r"
+        table.align["Payment"] = "r"
+
+        for holder in holders:
+            payment_amount = holder.balance * self.config.payout_rate
+            table.add_row(
+                [holder.account, holder.balance, f"{payment_amount:0.4f}"]
+            )
+
+        print(table.get_string(sortby="Holding", reversesort=True))
 
 def main():
-    """
-    Main script execution function.
-    """
+    """Main script execution function."""
     try:
-        _, hive_wallet = initialize_blockchain_connections()
-        richlist = get_richlist()
-        process_payments(hive_wallet, richlist)
-        display_richlist(richlist)
+        distributor = TokenDistributor()
+        richlist = distributor.get_richlist()
+        distributor.process_payments(richlist)
+        distributor.display_richlist(richlist)
     except Exception as e:
-        logging.error(f"Script execution error: {e}")
-
+        logger.error(f"Script execution error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,16 @@
 
 The **Hive Engine Token Distribution Script** is a Python script designed to retrieve a token's richlist, calculate payouts based on token holdings, and distribute tokens to the respective holders. This script is particularly useful for token creators and managers who want to automate the distribution of tokens to their community.
 
+## Features
+
+- 🔒 Secure environment-based configuration
+- 📊 Rich table-based output of token distributions
+- 🧪 Dry run mode for testing
+- 📝 Detailed logging
+- ⚡ Rate-limited transactions to prevent API throttling
+- 🛡️ Blacklist support for excluded accounts
+- 🔄 Automatic floor calculation for token balances
+
 ## Requirements
 
 - Python version: **>= 3.12**
@@ -15,33 +25,31 @@ The **Hive Engine Token Distribution Script** is a Python script designed to ret
 
 ## Environment Variables
 
-Before running the script, ensure that the following environment variables are set:
+The script is highly configurable through environment variables. You can set these in a `.env` file or your system environment:
 
-- `ACTIVE_WIF`: The active key for token transfers.
-- `POSTING_WIF`: The posting key for blockchain interactions.
+### Required Variables
+- `ACTIVE_WIF`: The active key for token transfers
+- `POSTING_WIF`: The posting key for blockchain interactions
 
-You can use a `.env` file to store these variables, and the script will load them automatically using the `python-dotenv` package.
-
-## Configuration
-
-The script contains a configuration section where you can adjust the following parameters:
-
-- `PAYOUT_RATE`: The rate at which tokens are distributed (default is `0.250`).
-- `TOKEN_QUERY`: The token symbol to query (default is `ARCHONM`).
-- `TOKEN_NAME`: The name of the token (default is `ARCHON`).
-- `BLACKLISTED_ACCOUNTS`: A list of accounts that should be excluded from the distribution (default includes `ufm.pay` and `upfundme`).
-- `NODE_URLS`: A list of Hive node URLs to connect to (default includes `https://api.hive.blog`).
-- `HIVE_ENGINE_API_URL`: The API URL for Hive Engine (default is `https://api.hive-engine.com/rpc/`).
+### Optional Variables
+- `PAYOUT_RATE`: The rate at which tokens are distributed (default: `0.250`)
+- `TOKEN_QUERY`: The token symbol to query (default: `ARCHONM`)
+- `TOKEN_NAME`: The name of the token (default: `ARCHON`)
+- `BLACKLISTED_ACCOUNTS`: Comma-separated list of excluded accounts (default: `ufm.pay,upfundme`)
+- `NODE_URL`: Hive node URL (default: `https://api.hive.blog`)
+- `HIVE_ENGINE_API_URL`: Hive Engine API URL (default: `https://api.hive-engine.com/rpc/`)
+- `DRY_RUN`: Enable dry run mode without broadcasting transactions (set to `true`, `1`, or `yes`)
 
 ## Usage
-1. Set up your environment variables in a `.env` file:
 
+### Quick Start
+1. Set up your environment variables in a `.env` file:
    ```plaintext
    ACTIVE_WIF=your_active_wif_key
    POSTING_WIF=your_posting_wif_key
    ```
-2. The script is self-contained and can be executed directly using `uv` for package management.
 
+2. The script is self-contained and can be executed directly using `uv` for package management:
    ```bash
    pipx install uv
    curl -L https://raw.githubusercontent.com/TheCrazyGM/mining-arc/refs/heads/main/src/mining_arc/__init__.py -o mining_arc.py
@@ -49,59 +57,64 @@ The script contains a configuration section where you can adjust the following p
    ./mining_arc.py
    ```
 
-## Alternative Usage
+### Alternative Installation
 
 1. Clone the repository:
-
    ```bash
    git clone https://github.com/TheCrazyGM/mining-arc.git
    cd mining-arc 
    ```
 
-2. Install the required dependencies:
-
+2. Install dependencies:
    ```bash
+   # Using pip
    pip install -r requirements.txt
-   ```
-   or
-   ```bash
+   
+   # Or using uv
    uv sync
    ```
 
-4. Set up your environment variables in a `.env` file:
-
-   ```plaintext
-   ACTIVE_WIF=your_active_wif_key
-   POSTING_WIF=your_posting_wif_key
-   ```
-
-5. Run the script:
+3. Run the script:
    ```bash
    python3 mining_arc.py
    ```
 
+### Testing Mode
+
+To test the script without broadcasting transactions:
+```bash
+DRY_RUN=true python3 mining_arc.py
+```
+
+## Architecture
+
+The script uses a modern, class-based architecture for better organization and maintainability:
+
+### Core Classes
+
+- `TokenConfig`: Manages all configuration settings with environment variable support
+- `TokenHolder`: Represents a token holder with their balance and payment calculations
+- `TokenDistributor`: Main class handling all distribution operations
+
+### Key Methods
+
+- `TokenDistributor.get_richlist()`: Retrieves and filters the token holder richlist
+- `TokenDistributor.send_transaction()`: Handles individual token transfers
+- `TokenDistributor.process_payments()`: Orchestrates the payment distribution process
+- `TokenDistributor.display_richlist()`: Generates a formatted table of distributions
+
 ## Logging
 
-The script uses Python's built-in logging module to log information and errors. The log messages will be printed to the console, providing insights into the script's execution flow.
-
-## Functions
-
-- `initialize_blockchain_connections()`: Initializes connections to the Hive and Hive Engine blockchains.
-- `get_richlist()`: Retrieves and filters the token holder richlist.
-- `send_transaction(hive_wallet, recipient, amount)`: Sends a token transaction to a specified recipient.
-- `process_payments(hive_wallet, data)`: Processes and distributes token payments to holders.
-- `display_richlist(data)`: Displays the richlist in a formatted table.
+The script provides detailed logging with different levels:
+- INFO: General operation information
+- WARNING: Non-critical issues (e.g., transaction failures)
+- ERROR: Critical issues that prevent operation
+- DEBUG: Detailed transaction information (when needed)
 
 ## Contributing
 
-Contributions are welcome! If you have suggestions for improvements or find bugs, please open an issue or submit a pull request.
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [Beem](https://github.com/holgerd77/beem): A Python library for interacting with the Hive blockchain.
-- [Hive Engine](https://hive-engine.com): A decentralized token platform on the Hive blockchain.
-- [PrettyTable](https://pypi.org/project/prettytable/): A simple Python library for displaying tabular data in a visually appealing way.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
