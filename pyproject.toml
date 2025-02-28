@@ -10,8 +10,9 @@ requires-python = ">=3.13"
 dependencies = [
     "beem>=0.24.26",
     "hiveengine>=0.2.2",
-    "prettytable>=3.12.0",
     "python-dotenv>=1.0.1",
+    "tqdm>=4.66.1",
+    "colorama>=0.4.6",
 ]
 
 [project.scripts]
