@@ -130,3 +130,4 @@ dmypy.json
 
 # Output from audit
 transaction_audit.csv
+transaction_audit_*.csv

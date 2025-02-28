@@ -9,10 +9,14 @@ The **Hive Engine Token Distribution Script** is a Python script designed to ret
 - 🔒 Secure environment-based configuration
 - 📊 Rich table-based output of token distributions
 - 🧪 Dry run mode for testing
-- 📝 Detailed logging
+- 📝 Detailed logging with colorized output
 - ⚡ Rate-limited transactions to prevent API throttling
 - 🛡️ Blacklist support for excluded accounts
 - 🔄 Automatic floor calculation for token balances
+- 🎨 Colorized console output for better readability
+- ⏱️ Progress bar for transaction processing
+- 📈 Comprehensive summary report with distribution statistics
+- 🕒 Timestamped CSV audit files for tracking distribution history
 
 ## Requirements
 
@@ -21,7 +25,8 @@ The **Hive Engine Token Distribution Script** is a Python script designed to ret
   - `beem`
   - `hiveengine`
   - `python-dotenv`
-  - `prettytable`
+  - `tqdm` (for progress bars)
+  - `colorama` (for colored output)
 
 ## Environment Variables
 
@@ -99,10 +104,17 @@ The script uses a modern, class-based architecture for better organization and m
 
 ### Key Methods
 
-- `TokenDistributor.get_richlist()`: Retrieves and filters the token holder richlist
-- `TokenDistributor.send_transaction()`: Handles individual token transfers
-- `TokenDistributor.process_payments()`: Orchestrates the payment distribution process
-- `TokenDistributor.display_richlist()`: Generates a formatted table of distributions
+- `get_richlist()`: Retrieves and filters token holders
+- `process_payments()`: Distributes tokens with progress tracking
+- `generate_audit_report()`: Creates timestamped CSV audit files
+- `display_summary_report()`: Shows a comprehensive distribution summary
+
+### Output Features
+
+- **Colorized Logging**: Different colors for different log levels (info, warning, error)
+- **Progress Bar**: Visual indication of distribution progress
+- **Summary Report**: Detailed statistics about the distribution run
+- **Timestamped Audit Files**: CSV files with both run timestamp and individual transaction timestamps
 
 ## Logging
 

@@ -24,11 +24,12 @@ import sys
 import time
 from dataclasses import dataclass
 from decimal import ROUND_DOWN, Decimal, getcontext
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from beem import Hive
 from beem.wallet import Wallet
-from colorama import Fore, Back, Style, init as colorama_init
+from colorama import Back, Fore, Style
+from colorama import init as colorama_init
 from dotenv import load_dotenv
 from hiveengine.api import Api
 from hiveengine.tokenobject import Token
@@ -41,20 +42,33 @@ colorama_init(autoreset=True)
 # Decimal precision setup
 getcontext().prec = 16
 
+
 # Configure logging with colorized output
 class ColorizedLogFormatter(logging.Formatter):
     FORMATS = {
-        logging.DEBUG: Fore.CYAN + "%(asctime)s - %(levelname)s - %(message)s" + Style.RESET_ALL,
-        logging.INFO: Fore.GREEN + "%(asctime)s - %(levelname)s - %(message)s" + Style.RESET_ALL,
-        logging.WARNING: Fore.YELLOW + "%(asctime)s - %(levelname)s - %(message)s" + Style.RESET_ALL,
-        logging.ERROR: Fore.RED + "%(asctime)s - %(levelname)s - %(message)s" + Style.RESET_ALL,
-        logging.CRITICAL: Fore.RED + Back.WHITE + "%(asctime)s - %(levelname)s - %(message)s" + Style.RESET_ALL,
+        logging.DEBUG: Fore.CYAN
+        + "%(asctime)s - %(levelname)s - %(message)s"
+        + Style.RESET_ALL,
+        logging.INFO: Fore.GREEN
+        + "%(asctime)s - %(levelname)s - %(message)s"
+        + Style.RESET_ALL,
+        logging.WARNING: Fore.YELLOW
+        + "%(asctime)s - %(levelname)s - %(message)s"
+        + Style.RESET_ALL,
+        logging.ERROR: Fore.RED
+        + "%(asctime)s - %(levelname)s - %(message)s"
+        + Style.RESET_ALL,
+        logging.CRITICAL: Fore.RED
+        + Back.WHITE
+        + "%(asctime)s - %(levelname)s - %(message)s"
+        + Style.RESET_ALL,
     }
-    
+
     def format(self, record):
         log_format = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_format)
         return formatter.format(record)
+
 
 handler = logging.StreamHandler()
 handler.setFormatter(ColorizedLogFormatter())
@@ -191,9 +205,15 @@ class TokenDistributor:
     def process_payments(self, holders: List[TokenHolder]) -> None:
         self.stats["start_time"] = time.time()
         # Add progress bar
-        for holder in tqdm(holders, desc=f"{Fore.BLUE}Processing payments{Style.RESET_ALL}", unit="holder"):
+        for holder in tqdm(
+            holders,
+            desc=f"{Fore.BLUE}Processing payments{Style.RESET_ALL}",
+            unit="holder",
+        ):
             amount = holder.payment_amount(self.config)
             if amount > Decimal("0.0000"):
+                # Record transaction time before sending
+                tx_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
                 tx_id = self.send_transaction(holder.account, amount)
                 status = "Success" if tx_id else "Failed"
                 self.audit_log.append(
@@ -203,61 +223,118 @@ class TokenDistributor:
                         "payment": f"{amount:.4f}",
                         "status": status,
                         "transaction_id": tx_id or "",
+                        "tx_timestamp": tx_timestamp,  # Individual transaction timestamp
                     }
                 )
                 time.sleep(1)
         self.stats["end_time"] = time.time()
 
-    def generate_audit_report(self, filename: str = "transaction_audit.csv") -> None:
-        fields = ["account", "balance", "payment", "status", "transaction_id"]
+    def generate_audit_report(self, filename: str = None) -> None:
+        """Generate a CSV audit report with timestamp in filename and as a column."""
+        # Generate a timestamp for this run
+        timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+
+        # If no filename provided, create one with timestamp
+        if filename is None:
+            filename = f"transaction_audit_{timestamp}.csv"
+
+        # Add run timestamp to each record
+        for record in self.audit_log:
+            record["run_timestamp"] = timestamp
+
+        # Define fields with timestamps included
+        fields = [
+            "account",
+            "balance",
+            "payment",
+            "status",
+            "transaction_id",
+            "tx_timestamp",
+            "run_timestamp",
+        ]
+
         with open(filename, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fields)
             writer.writeheader()
             writer.writerows(self.audit_log)
+
         logger.info(f"Audit report saved as '{filename}'")
-        
+
+        # Store the filename for reference in the summary report
+        self.stats["audit_filename"] = filename
+
     def display_summary_report(self) -> None:
         """Display a comprehensive summary report of the distribution process."""
         if self.stats["start_time"] and self.stats["end_time"]:
             duration = self.stats["end_time"] - self.stats["start_time"]
         else:
             duration = 0
-            
+
         # Create a visually appealing summary report
-        print("\n" + "="*80)
-        print(f"{Fore.CYAN}{Style.BRIGHT}🔶 TOKEN DISTRIBUTION SUMMARY REPORT 🔶{Style.RESET_ALL}")
-        print("="*80)
-        
+        print("\n" + "=" * 80)
+        print(
+            f"{Fore.CYAN}{Style.BRIGHT}🔶 TOKEN DISTRIBUTION SUMMARY REPORT 🔶{Style.RESET_ALL}"
+        )
+        print("=" * 80)
+
         # Configuration section
         print(f"{Fore.YELLOW}{Style.BRIGHT}📋 Configuration:{Style.RESET_ALL}")
-        print(f"  • Token: {Fore.GREEN}{self.config.token_name}{Style.RESET_ALL} (query: {self.config.token_query})")
-        print(f"  • Payout Rate: {Fore.GREEN}{self.config.payout_rate}{Style.RESET_ALL}")
-        print(f"  • Mode: {Fore.RED if self.config.nobroadcast else Fore.GREEN}{'DRY RUN' if self.config.nobroadcast else 'LIVE'}{Style.RESET_ALL}")
-        
+        print(
+            f"  • Token: {Fore.GREEN}{self.config.token_name}{Style.RESET_ALL} (query: {self.config.token_query})"
+        )
+        print(
+            f"  • Payout Rate: {Fore.GREEN}{self.config.payout_rate}{Style.RESET_ALL}"
+        )
+        print(
+            f"  • Mode: {Fore.RED if self.config.nobroadcast else Fore.GREEN}{'DRY RUN' if self.config.nobroadcast else 'LIVE'}{Style.RESET_ALL}"
+        )
+        print(
+            f"  • Timestamp: {Fore.CYAN}{time.strftime('%Y-%m-%d %H:%M:%S')}{Style.RESET_ALL}"
+        )
+
         # Results section
         print(f"\n{Fore.YELLOW}{Style.BRIGHT}📊 Results:{Style.RESET_ALL}")
-        print(f"  • Total Holders Processed: {Fore.CYAN}{self.stats['total_holders']}{Style.RESET_ALL}")
-        print(f"  • Successful Payments: {Fore.GREEN}{self.stats['successful_payments']}{Style.RESET_ALL}")
-        print(f"  • Failed Payments: {Fore.RED}{self.stats['failed_payments']}{Style.RESET_ALL}")
-        print(f"  • Success Rate: {Fore.GREEN}{(self.stats['successful_payments'] / max(self.stats['total_holders'], 1)) * 100:.1f}%{Style.RESET_ALL}")
-        
+        print(
+            f"  • Total Holders Processed: {Fore.CYAN}{self.stats['total_holders']}{Style.RESET_ALL}"
+        )
+        print(
+            f"  • Successful Payments: {Fore.GREEN}{self.stats['successful_payments']}{Style.RESET_ALL}"
+        )
+        print(
+            f"  • Failed Payments: {Fore.RED}{self.stats['failed_payments']}{Style.RESET_ALL}"
+        )
+        print(
+            f"  • Success Rate: {Fore.GREEN}{(self.stats['successful_payments'] / max(self.stats['total_holders'], 1)) * 100:.1f}%{Style.RESET_ALL}"
+        )
+
         # Tokens section
         print(f"\n{Fore.YELLOW}{Style.BRIGHT}💰 Tokens:{Style.RESET_ALL}")
-        print(f"  • Total {self.config.token_name} Distributed: {Fore.GREEN}{self.stats['total_tokens_distributed']:.4f}{Style.RESET_ALL}")
-        if self.stats['total_holders'] > 0:
-            avg_per_holder = self.stats['total_tokens_distributed'] / self.stats['total_holders']
-            print(f"  • Average Per Holder: {Fore.CYAN}{avg_per_holder:.4f}{Style.RESET_ALL}")
-        
+        print(
+            f"  • Total {self.config.token_name} Distributed: {Fore.GREEN}{self.stats['total_tokens_distributed']:.4f}{Style.RESET_ALL}"
+        )
+        if self.stats["total_holders"] > 0:
+            avg_per_holder = (
+                self.stats["total_tokens_distributed"] / self.stats["total_holders"]
+            )
+            print(
+                f"  • Average Per Holder: {Fore.CYAN}{avg_per_holder:.4f}{Style.RESET_ALL}"
+            )
+
         # Time section
         print(f"\n{Fore.YELLOW}{Style.BRIGHT}⏱️ Time:{Style.RESET_ALL}")
         print(f"  • Duration: {Fore.CYAN}{duration:.2f} seconds{Style.RESET_ALL}")
-        if self.stats['successful_payments'] > 0 and duration > 0:
-            print(f"  • Average Time Per Payment: {Fore.CYAN}{duration / self.stats['successful_payments']:.2f} seconds{Style.RESET_ALL}")
-        
-        print("="*80)
-        
+        if self.stats["successful_payments"] > 0 and duration > 0:
+            print(
+                f"  • Average Time Per Payment: {Fore.CYAN}{duration / self.stats['successful_payments']:.2f} seconds{Style.RESET_ALL}"
+            )
+
+        print("=" * 80)
+
         # Add a note about the audit file
-        print(f"\n{Fore.CYAN}📝 Detailed transaction audit saved to: transaction_audit.csv{Style.RESET_ALL}")
+        audit_filename = self.stats.get("audit_filename", "transaction_audit.csv")
+        print(
+            f"\n{Fore.CYAN}📝 Detailed transaction audit saved to: {audit_filename}{Style.RESET_ALL}"
+        )
 
 
 def main():
