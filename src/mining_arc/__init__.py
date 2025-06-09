@@ -41,6 +41,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+load_dotenv()
 # Rich Console for pretty output
 console = Console()
 
@@ -98,7 +99,6 @@ class TokenHolder:
 
 class TokenDistributor:
     def __init__(self):
-        load_dotenv()
         self.config = TokenConfig.from_env()
         self.validate_environment()
         self.api = Api(url=self.config.hive_engine_api_url)
