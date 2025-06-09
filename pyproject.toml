@@ -11,8 +11,7 @@ dependencies = [
     "beem>=0.24.26",
     "hiveengine>=0.2.2",
     "python-dotenv>=1.0.1",
-    "tqdm>=4.66.1",
-    "colorama>=0.4.6",
+    "rich>=13.0.0",
 ]
 
 [project.scripts]

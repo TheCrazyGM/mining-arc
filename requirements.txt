@@ -2,5 +2,4 @@ beem
 hiveengine
 prettytable
 python-dotenv
-tqdm
-colorama
+rich
