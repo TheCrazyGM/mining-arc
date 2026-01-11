@@ -17,10 +17,12 @@ Requires environment variables:
 """
 
 import csv
+import glob
 import logging
 import os
 import sys
 import time
+
 from dataclasses import dataclass
 from decimal import ROUND_DOWN, Decimal, getcontext
 from typing import Any, Dict, List, Optional, Tuple
@@ -277,6 +279,36 @@ class TokenDistributor:
         # Store the filename for reference in the summary report
         self.stats["audit_filename"] = filename
 
+    def cleanup_old_audits(self, days_to_keep: int = 7) -> None:
+        """Remove audit files older than the specified number of days."""
+        try:
+            # Pattern matches the files created by generate_audit_report
+            pattern = "transaction_audit_*.csv"
+            files = glob.glob(pattern)
+
+            cutoff_time = time.time() - (days_to_keep * 86400)
+            deleted_count = 0
+
+            for file_path in files:
+                try:
+                    # Get file modification time
+                    mtime = os.path.getmtime(file_path)
+
+                    if mtime < cutoff_time:
+                        os.remove(file_path)
+                        deleted_count += 1
+                        logger.debug(f"Removed old audit file: {file_path}")
+                except OSError as e:
+                    logger.warning(f"Error removing {file_path}: {e}")
+
+            if deleted_count > 0:
+                logger.info(
+                    f"Cleaned up {deleted_count} old audit file(s) (> {days_to_keep} days)"
+                )
+
+        except Exception as e:
+            logger.error(f"Error during audit cleanup: {e}")
+
     def display_summary_report(self) -> None:
         """Display a comprehensive summary report of the distribution process."""
         if self.stats["start_time"] and self.stats["end_time"]:
@@ -350,6 +382,7 @@ def main():
     holders = distributor.get_richlist()
     distributor.process_payments(holders)
     distributor.generate_audit_report()
+    distributor.cleanup_old_audits()
     distributor.display_summary_report()
 
 
